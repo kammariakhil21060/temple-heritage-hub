@@ -256,7 +256,7 @@ with col1:
     if st.button("🏠 Back to Home"):
         st.switch_page("app.py")
 with col2:
-    if st.button("📤 Upload Content"):
+    if st.button("📤 Upload Content", key="upload_content_nav"):
         st.switch_page("pages/1_Upload_Content.py")
 with col3:
     if st.button("🗺️ Heritage Map"):
