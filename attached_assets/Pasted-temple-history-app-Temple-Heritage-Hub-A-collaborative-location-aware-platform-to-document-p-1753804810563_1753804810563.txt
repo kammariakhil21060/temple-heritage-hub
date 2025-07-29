@@ -1,0 +1,105 @@
+temple_history_app
+🏛️ Temple Heritage Hub
+A collaborative, location-aware platform to document, preserve, and share the rich heritage of temples using multimedia content and geotagging—powered by Streamlit.
+
+Table of Contents
+Project Overview
+Key Features
+Screenshots
+Project Structure
+Database Schema
+Installation
+Running the App
+Usage Guide
+Dashboard Navigation
+Supported Content Types
+Customization & Advanced Usage
+Troubleshooting
+Credits & References
+Project Overview
+Temple Heritage Hub enables anyone to digitally preserve temple knowledge by:
+
+Uploading photos, audio, and documents about temples
+Contributing precise location (GPS/manual/IP) data
+Recording history and community stories
+Browsing and searching through all contributions
+Viewing sacred sites and events on an interactive map
+Key Features
+Single-Page Dashboard: Card-based navigation to all primary pages of the app.
+Flexible Content Upload: Photos, audio, docs, new temple data, and events—each with titles, descriptions, and geolocation.
+Precise Geolocation: Device GPS (with browser prompt), manual lat/lon, and IP location fallback.
+Interactive Maps: Color-coded, filterable view of all temples, events, and contributions—instantly discover heritage around you.
+Search & Filter: By name, location, architecture style, content type, and contributor.
+Rich Temple Metadata: Name, deity, architectural style, built year, history, and more.
+Community Attribution or Anonymity: Choose to name yourself or remain anonymous.
+Statistics & Analytics: See real-time dashboards and bar charts of activity and content.
+Screenshots
+Replace these with real screenshots if possible!
+
+Dashboard with Navigation Cards
+Upload Content Page
+Map with marker clusters
+Community Contributions Table
+
+
+Database Schema
+Table	Fields (partial schema)
+temples	id, name, location_address, latitude, longitude, deity, ...
+temple_media	id, temple_id, media_type, filename, file_data, latitude, ...
+historical_events	id, temple_id, event_date, event_title, latitude, ...
+content_contributions	id, title, content_type, description, latitude, longitude, ...
+All tables support geolocation (lat/lon), contributor name, and timestamps.
+
+Installation
+Clone or download the repository
+
+Install dependencies: pip install -r requirements.txt If requirements.txt is missing:
+
+pip install streamlit pandas pillow requests streamlit-
+
+Running the App
+To launch the dashboard (recommended for navigation): streamlit run dashboard.py Or run the main app directly: Or run the main app directly: streamlit run temple_history_app.py
+
+The app will open in your browser (default: http://localhost:8501)
+
+Usage Guide
+🏠 Home: Welcome page, project stats/metrics, and shortcut cards.
+📤 Upload Content: Contribute new content (images, audio, documents, temple information, or events). Set location by GPS, manual or IP method.
+🗂️ Browse Temples: View/search/filter all temples, see metadata, architecture and geolocation on a map.
+🌟 Community Contributions: See everything uploaded by community members, filter by contributor, type, or location.
+📈 Heritage Statistics: Visual stats about contributions, content types, and monthly trends.
+🗺️ Heritage Map: Interactive map with markers for all heritage items.
+Navigation: Use the dashboard cards on dashboard.py for instant access to each section.
+
+Dashboard Navigation
+The dashboard.py consists of card-style navigation using Streamlit's column layout. Example from the code:
+
+Change page labels or order as needed; use st.switch_page("Page Name") to navigate.
+
+Supported Content Types
+Images: .jpg, .jpeg, .png, .gif, .bmp
+Audio: .mp3, .wav, .m4a, .ogg, .flac
+Documents: .pdf, .doc, .docx, .txt, .rtf
+Temple/Event Data: Structured fields; location, description, dates, etc
+Customization & Advanced Usage
+Add/modify metadata: Expand the database schema or forms for new types (festivals, trustees, 3D scans, etc).
+Cloud Deployment: Use Streamlit Cloud, Heroku, etc. (persist the SQLite file for data retention).
+User Login: Add authentication with streamlit-authenticator or other packages.
+Bulk Import/Export: Extend code for CSV or batch uploads/downloads.
+Troubleshooting
+Location access error?
+Use manual entry if browser/device GPS is denied or IP-based location is inaccurate.
+Database not found/created?
+The app auto-generates temple_heritage.db in your working directory.
+Large file upload issues?
+Adjust Streamlit’s limit via .streamlit/config.toml (server.maxUploadSize = 200)
+Missing features or errors?
+Ensure all dependencies are installed and up to date.
+Credits & References
+Built with Streamlit, Pandas, Pillow, streamlit-geolocation
+Inspired by cultural digitization and sacred architecture documentation projects.
+Icons used from Twemoji.
+Help us preserve temple heritage—contribute today!
+
+
+use streamlit to build the site
