@@ -2,6 +2,9 @@ import os
 import streamlit as st
 from sqlalchemy import create_engine, text
 from typing import Optional
+from dotenv import load_dotenv
+load_dotenv()
+import urllib.parse
 
 def get_supabase_client():
     """
@@ -9,30 +12,23 @@ def get_supabase_client():
     Returns database connection or None if failed
     """
     try:
+        # Try to get DATABASE_URL from environment variable first
         database_url = os.getenv("DATABASE_URL")
-        
         if not database_url:
-            st.error("DATABASE_URL environment variable not set. Please configure your Supabase connection.")
-            st.info("""
-            To set up Supabase connection:
-            1. Go to the Supabase dashboard (https://supabase.com/dashboard/projects)
-            2. Create a new project if you haven't already
-            3. Once in the project page, click the "Connect" button on the top toolbar
-            4. Copy URI value under "Connection string" -> "Transaction pooler"
-            5. Replace [YOUR-PASSWORD] with the database password you set for the project
-            6. Set the DATABASE_URL environment variable with this connection string
-            """)
-            return None
-        
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_password = os.getenv("SUPABASE_PASSWORD")
+            if supabase_url and supabase_password:
+                host = supabase_url.replace("https://", "").replace("http://", "")
+                escaped_password = urllib.parse.quote_plus(supabase_password)
+                database_url = f"postgresql://postgres:{escaped_password}@{host}:5432/postgres"
+            else:
+                st.error("DATABASE_URL or SUPABASE_PASSWORD environment variable not set.")
+                return None
         # Test the connection
         engine = create_engine(database_url)
-        
-        # Test connection with a simple query
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        
         return engine
-    
     except Exception as e:
         st.error(f"Failed to connect to Supabase: {str(e)}")
         st.info("""
@@ -40,7 +36,7 @@ def get_supabase_client():
         - Ensure your DATABASE_URL is correctly formatted
         - Check that your Supabase project is active
         - Verify your database password is correct
-        - Make sure you're using the Transaction pooler connection string, not the Direct connection
+        - Make sure you're using the correct connection string format
         """)
         return None
 
@@ -62,10 +58,9 @@ def get_supabase_storage_client():
     For now, we'll use direct REST API calls
     """
     try:
-        # This would require supabase-py library which we're avoiding
-        # For file storage, we'll implement direct REST API calls
-        storage_url = os.getenv("SUPABASE_URL", "").replace("/rest/v1", "")
-        storage_key = os.getenv("SUPABASE_ANON_KEY", "")
+        # Use the provided Supabase credentials
+        storage_url = os.getenv("SUPABASE_URL", "https://rrbrghxzuzzxroqbwfqi.supabase.co")
+        storage_key = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyYnJnaHh6dXp6eHJvcWJ3ZnFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4MDU0OTMsImV4cCI6MjA2OTM4MTQ5M30.Evcf0lPD7reXvgZNZrAZDoHHLDx72AUmUHMSOXgQNV4")
         
         if not storage_url or not storage_key:
             st.warning("Supabase storage credentials not configured. File uploads will be disabled.")

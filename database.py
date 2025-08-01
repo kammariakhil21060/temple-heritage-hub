@@ -174,7 +174,10 @@ def insert_content_contribution(title, content_type, description, file_url,
                                latitude, longitude, location_address, contributor_name):
     """Insert a new content contribution"""
     try:
-        engine = create_engine(os.getenv("DATABASE_URL"))
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            return None
+        engine = create_engine(database_url)
         with engine.connect() as conn:
             query = text("""
                 INSERT INTO content_contributions (title, content_type, description, 
@@ -203,7 +206,10 @@ def insert_content_contribution(title, content_type, description, file_url,
 def get_all_temples():
     """Get all temples"""
     try:
-        engine = create_engine(os.getenv("DATABASE_URL"))
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            return pd.DataFrame()
+        engine = create_engine(database_url)
         query = text("""
             SELECT * FROM temples ORDER BY created_at DESC
         """)
@@ -215,7 +221,10 @@ def get_all_temples():
 def get_all_contributions():
     """Get all content contributions"""
     try:
-        engine = create_engine(os.getenv("DATABASE_URL"))
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            return pd.DataFrame()
+        engine = create_engine(database_url)
         query = text("""
             SELECT * FROM content_contributions ORDER BY created_at DESC
         """)
@@ -227,7 +236,10 @@ def get_all_contributions():
 def search_temples(search_term, architectural_style=None):
     """Search temples by name or other criteria"""
     try:
-        engine = create_engine(os.getenv("DATABASE_URL"))
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            return pd.DataFrame()
+        engine = create_engine(database_url)
         where_clause = "WHERE name ILIKE :search_term OR deity ILIKE :search_term OR location_address ILIKE :search_term"
         params = {"search_term": f"%{search_term}%"}
         

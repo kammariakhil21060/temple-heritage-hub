@@ -1,7 +1,10 @@
+print("App started")
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from database import init_database, get_temple_count, get_contribution_count, get_recent_contributions
 from utils.supabase_client import get_supabase_client
 
@@ -55,12 +58,27 @@ def main():
         if supabase:
             st.success("✅ Connected to Supabase database")
         else:
-            st.error("❌ Supabase connection failed. Please check your DATABASE_URL.")
-            st.stop()
+            st.warning("⚠️ Supabase connection not configured")
+            st.info("""
+            To connect to your Supabase database:
+            
+            1. **Get your database password:**
+               - Go to: https://supabase.com/dashboard/project/rrbrghxzuzzxroqbwfqi
+               - Navigate to Settings > Database
+               - Copy your database password
+            
+            2. **Set the environment variable:**
+               - Windows: `set SUPABASE_PASSWORD=your_password_here`
+               - Linux/Mac: `export SUPABASE_PASSWORD=your_password_here`
+            
+            3. **Or run the setup script:**
+               - `python setup_supabase.py`
+            
+            The app will work with limited functionality until the database is connected.
+            """)
     except Exception as e:
         st.error(f"❌ Database connection error: {str(e)}")
-        st.info("Please ensure your DATABASE_URL environment variable is set correctly.")
-        st.stop()
+        st.info("Please ensure your Supabase credentials are set correctly.")
     
     # Statistics section
     st.markdown("---")
@@ -90,25 +108,25 @@ def main():
     
     with col1:
         if st.button("📤 Upload Content", use_container_width=True):
-            st.switch_page("pages/1_Upload_Content.py")
+            st.success("Navigate to Upload Content page using the sidebar!")
         st.markdown("Contribute photos, audio, documents, temple data, or events")
         
         if st.button("🗂️ Browse Temples", use_container_width=True):
-            st.switch_page("pages/2_Browse_Temples.py")
+            st.success("Navigate to Browse Temples page using the sidebar!")
         st.markdown("Explore documented temples with search and filters")
     
     with col2:
         if st.button("🌟 Community Contributions", use_container_width=True):
-            st.switch_page("pages/3_Community_Contributions.py")
+            st.success("Navigate to Community Contributions page using the sidebar!")
         st.markdown("View all community uploads and contributions")
         
         if st.button("📈 Heritage Statistics", use_container_width=True):
-            st.switch_page("pages/4_Heritage_Statistics.py")
+            st.success("Navigate to Heritage Statistics page using the sidebar!")
         st.markdown("Analytics and insights about platform activity")
     
     with col3:
         if st.button("🗺️ Heritage Map", use_container_width=True):
-            st.switch_page("pages/5_Heritage_Map.py")
+            st.success("Navigate to Heritage Map page using the sidebar!")
         st.markdown("Interactive map of all heritage locations")
         
         st.markdown("") # Spacer
@@ -131,7 +149,17 @@ def main():
                         st.caption("By: Anonymous")
                 with col2:
                     st.caption(f"📍 {contribution['location_address']}")
-                    st.caption(f"📅 {contribution['created_at'].strftime('%Y-%m-%d')}")
+                    # Handle created_at safely
+                    try:
+                        if pd.notna(contribution['created_at']):
+                            if hasattr(contribution['created_at'], 'strftime'):
+                                st.caption(f"📅 {contribution['created_at'].strftime('%Y-%m-%d')}")
+                            else:
+                                st.caption(f"📅 {contribution['created_at']}")
+                        else:
+                            st.caption("📅 Date not available")
+                    except:
+                        st.caption("📅 Date not available")
     else:
         st.info("No recent contributions yet. Be the first to contribute!")
     
