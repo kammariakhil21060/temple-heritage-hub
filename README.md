@@ -1,88 +1,169 @@
-# Temple Heritage Hub
+# 🏛️ Temple Heritage Hub
 
-A collaborative, location-aware platform built with Streamlit that enables users to document, preserve, and share temple heritage through multimedia content and geolocation features.
+A collaborative location-aware platform to document and preserve sacred temple knowledge using Streamlit and Supabase.
 
-## Features
+## 🚀 Features
 
-- **Multi-page Dashboard**: Card-based navigation to all primary sections
-- **Content Upload**: Photos, audio, documents, temple data, and historical events with geolocation
-- **Interactive Maps**: Color-coded, filterable view of all temples and contributions
-- **Search & Filter**: By name, location, architectural style, content type, and contributor
-- **Rich Temple Metadata**: Name, deity, architectural style, built year, history, and more
-- **Community Attribution**: Choose to contribute with your name or anonymously
-- **Statistics & Analytics**: Real-time dashboards and charts of activity and content
+- **📤 Content Upload**: Upload temple information, photos, audio recordings, documents, and historical events
+- **🗂️ Browse Temples**: View and search through uploaded temple information
+- **🗺️ Interactive Map**: Explore temples and heritage sites on an interactive map
+- **📊 Heritage Statistics**: View analytics and statistics about contributions
+- **👥 Community Contributions**: See contributions from the community
 
-## Technology Stack
+## 🛠️ Technology Stack
 
-- **Frontend**: Streamlit with multi-page architecture
-- **Backend**: PostgreSQL database via Supabase
-- **Maps**: Folium for interactive mapping
-- **Charts**: Plotly for data visualization
-- **Storage**: Supabase for file storage (configurable)
+- **Frontend**: Streamlit
+- **Backend**: Supabase (PostgreSQL + Storage)
+- **Database**: PostgreSQL with custom schemas
+- **File Storage**: Supabase Storage
+- **Maps**: Folium/Streamlit-Folium
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Python 3.11+
+- Python 3.8+
 - Supabase account and project
-- Required Python packages (see pyproject.toml)
+- Required Python packages (see requirements.txt)
 
-## Installation
+## 🚀 Installation & Setup
 
-1. Clone the repository:
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd temple-heritage-hub
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Supabase Setup**
+   - Create a Supabase project at [supabase.com](https://supabase.com)
+   - Set up the following tables in your Supabase database:
+     - `temples`
+     - `content_contributions`
+     - `historical_events`
+     - `media_uploads`
+     - `users`
+
+4. **Environment Configuration**
+   The application is configured to use your Supabase credentials directly in the code:
+   - Supabase URL: `https://rrbrghxzuzzxroqbwfqi.supabase.co`
+   - Database URL: `postgresql://postgres:Akhil%40112233@db.rrbrghxzuzzxroqbwfqi.supabase.co:5432/postgres`
+   - Anon Key: Configured in the code
+
+5. **Run the application**
+   ```bash
+   streamlit run app.py
+   ```
+
+## 📊 Database Schema
+
+### Temples Table
+```sql
+CREATE TABLE public.temples (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  location text,
+  image_url text,
+  audio_url text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT temples_pkey PRIMARY KEY (id)
+);
+```
+
+### Content Contributions Table
+```sql
+CREATE TABLE public.content_contributions (
+  id serial NOT NULL,
+  title character varying(255) NOT NULL,
+  content_type character varying(50),
+  description text,
+  file_url text,
+  latitude numeric(10, 8),
+  longitude numeric(11, 8),
+  location_address text,
+  contributor_name character varying(255),
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT content_contributions_pkey PRIMARY KEY (id)
+);
+```
+
+### Historical Events Table
+```sql
+CREATE TABLE public.historical_events (
+  id serial NOT NULL,
+  temple_id integer,
+  event_date date,
+  event_title character varying(255),
+  event_description text,
+  latitude numeric(10, 8),
+  longitude numeric(11, 8),
+  contributor_name character varying(255),
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT historical_events_pkey PRIMARY KEY (id)
+);
+```
+
+### Media Uploads Table
+```sql
+CREATE TABLE public.media_uploads (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  temple_id uuid,
+  uploaded_by uuid,
+  file_type text,
+  file_url text NOT NULL,
+  uploaded_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT media_uploads_pkey PRIMARY KEY (id),
+  CONSTRAINT media_uploads_temple_id_fkey FOREIGN KEY (temple_id) REFERENCES temples (id) ON DELETE CASCADE,
+  CONSTRAINT media_uploads_file_type_check CHECK (file_type = ANY (ARRAY['image'::text, 'audio'::text, 'document'::text]))
+);
+```
+
+## 🎯 Usage
+
+1. **Upload Content**: Use the "Upload Content" page to add temple information, photos, audio, or historical events
+2. **Browse Temples**: View all uploaded temples and their details
+3. **View Map**: Explore temples on an interactive map
+4. **Community Contributions**: See what others have contributed
+5. **Statistics**: View analytics about the heritage data
+
+## 🔧 Configuration
+
+The application is pre-configured with your Supabase credentials. If you need to change them:
+
+1. Update the environment variables in `app.py` and `pages/1_Upload_Content.py`
+2. Update the database connection string with your credentials
+3. Ensure your Supabase project has the required tables and storage buckets
+
+## 📁 Project Structure
+
+```
+temple-heritage-hub/
+├── app.py                          # Main Streamlit application
+├── database.py                     # Database operations
+├── requirements.txt                # Python dependencies
+├── pages/                          # Streamlit pages
+│   ├── 1_Upload_Content.py        # Content upload page
+│   ├── 2_Browse_Temples.py        # Temple browsing page
+│   ├── 3_Community_Contributions.py # Community page
+│   ├── 4_Heritage_Statistics.py   # Statistics page
+│   └── 5_Heritage_Map.py          # Interactive map page
+└── utils/                          # Utility modules
+    ├── supabase_client.py         # Supabase connection
+    ├── file_handler.py            # File upload utilities
+    └── geolocation.py             # Location utilities
+```
+
+## 🧪 Testing
+
+Run the connection test to verify your Supabase setup:
 ```bash
-git clone https://github.com/yourusername/temple-heritage-hub.git
-cd temple-heritage-hub
+python test_connection.py
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Set up environment variables:
-```bash
-# Create a .env file with your Supabase database URL
-DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:6543/postgres
-```
-
-4. Run the application:
-```bash
-streamlit run app.py --server.port 5000
-```
-
-## Database Setup
-
-The application automatically creates the following tables in your Supabase database:
-
-- `temples`: Core temple information with location and metadata
-- `temple_media`: Multimedia content linked to temples
-- `historical_events`: Time-based events associated with temples
-- `content_contributions`: General community contributions with geolocation
-
-## Usage
-
-1. **Home Dashboard**: View platform statistics and navigate to different sections
-2. **Upload Content**: Add photos, audio, documents, temple information, or historical events
-3. **Browse Temples**: Search and filter temples with various viewing modes
-4. **Community Contributions**: View all user contributions with filtering options
-5. **Heritage Statistics**: Analytics dashboard with charts and metrics
-6. **Heritage Map**: Interactive map showing all heritage locations
-
-## Configuration
-
-### Streamlit Configuration
-The app includes proper configuration in `.streamlit/config.toml`:
-```toml
-[server]
-headless = true
-address = "0.0.0.0"
-port = 5000
-```
-
-### Database Configuration
-Ensure your DATABASE_URL follows the correct format for Supabase connection pooling.
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -90,31 +171,16 @@ Ensure your DATABASE_URL follows the correct format for Supabase connection pool
 4. Test thoroughly
 5. Submit a pull request
 
-## File Structure
+## 📄 License
 
-```
-temple-heritage-hub/
-├── app.py                      # Main dashboard
-├── database.py                 # Database operations
-├── pages/                      # Streamlit pages
-│   ├── 1_Upload_Content.py
-│   ├── 2_Browse_Temples.py
-│   ├── 3_Community_Contributions.py
-│   ├── 4_Heritage_Statistics.py
-│   └── 5_Heritage_Map.py
-├── utils/                      # Utility modules
-│   ├── supabase_client.py
-│   ├── geolocation.py
-│   └── file_handler.py
-├── .streamlit/
-│   └── config.toml
-└── requirements.txt
-```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## License
+## 🙏 Acknowledgments
 
-This project is open source and available under the MIT License.
+- Built with Streamlit for the web interface
+- Powered by Supabase for backend services
+- Community contributions for temple heritage preservation
 
-## Support
+---
 
-For support and questions, please open an issue in the GitHub repository.
+**Note**: This application is configured to work with your specific Supabase project. Make sure to update the credentials if you're using a different Supabase project.

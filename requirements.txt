@@ -4,17 +4,9 @@ sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 requests>=2.31.0
 python-dotenv>=1.0.0
-folium
-plotly
-supabase
-   streamlit
-   pandas
-   sqlalchemy
-   psycopg2-binary
-   requests
-   python-dotenv
-   folium
-   plotly
-   streamlit-folium
-   supabase
+folium>=0.14.0
+plotly>=5.15.0
+streamlit-folium>=0.13.0
+supabase>=1.0.0
+uuid
    

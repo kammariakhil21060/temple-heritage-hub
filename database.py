@@ -1,90 +1,20 @@
-import sqlite3
 import pandas as pd
 from datetime import datetime
 import os
 from sqlalchemy import create_engine, text
 from utils.supabase_client import get_supabase_client
+import uuid
 
 def init_database():
-    """Initialize the database with required tables"""
+    """Initialize the database connection"""
     try:
-        supabase = get_supabase_client()
-        if not supabase:
+        engine = get_supabase_client()
+        if not engine:
             return False
         
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            return False
-        engine = create_engine(database_url)
-        
-        # Create tables if they don't exist
+        # Test connection by querying existing tables
         with engine.connect() as conn:
-            # Temples table
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS temples (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    location_address TEXT,
-                    latitude DECIMAL(10, 8),
-                    longitude DECIMAL(11, 8),
-                    deity VARCHAR(255),
-                    architectural_style VARCHAR(255),
-                    built_year INTEGER,
-                    history TEXT,
-                    contributor_name VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-            
-            # Temple media table
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS temple_media (
-                    id SERIAL PRIMARY KEY,
-                    temple_id INTEGER REFERENCES temples(id),
-                    media_type VARCHAR(50),
-                    filename VARCHAR(255),
-                    file_url TEXT,
-                    title VARCHAR(255),
-                    description TEXT,
-                    latitude DECIMAL(10, 8),
-                    longitude DECIMAL(11, 8),
-                    contributor_name VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-            
-            # Historical events table
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS historical_events (
-                    id SERIAL PRIMARY KEY,
-                    temple_id INTEGER REFERENCES temples(id),
-                    event_date DATE,
-                    event_title VARCHAR(255),
-                    event_description TEXT,
-                    latitude DECIMAL(10, 8),
-                    longitude DECIMAL(11, 8),
-                    contributor_name VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-            
-            # Content contributions table
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS content_contributions (
-                    id SERIAL PRIMARY KEY,
-                    title VARCHAR(255) NOT NULL,
-                    content_type VARCHAR(50),
-                    description TEXT,
-                    file_url TEXT,
-                    latitude DECIMAL(10, 8),
-                    longitude DECIMAL(11, 8),
-                    location_address TEXT,
-                    contributor_name VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-            
-            conn.commit()
+            conn.execute(text("SELECT 1 FROM temples LIMIT 1"))
         
         return True
     except Exception as e:
@@ -94,10 +24,10 @@ def init_database():
 def get_temple_count():
     """Get total number of temples"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return 0
-        engine = create_engine(database_url)
+        
         with engine.connect() as conn:
             result = conn.execute(text("SELECT COUNT(*) FROM temples")).fetchone()
             return result[0] if result else 0
@@ -107,10 +37,10 @@ def get_temple_count():
 def get_contribution_count():
     """Get total number of contributions"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return 0
-        engine = create_engine(database_url)
+        
         with engine.connect() as conn:
             result = conn.execute(text("SELECT COUNT(*) FROM content_contributions")).fetchone()
             return result[0] if result else 0
@@ -120,10 +50,10 @@ def get_contribution_count():
 def get_recent_contributions(limit=5):
     """Get recent contributions"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return pd.DataFrame()
-        engine = create_engine(database_url)
+        
         query = text("""
             SELECT title, content_type, description, location_address, 
                    contributor_name, created_at
@@ -131,62 +61,61 @@ def get_recent_contributions(limit=5):
             ORDER BY created_at DESC 
             LIMIT :limit
         """)
-        return pd.read_sql(query, engine, params={"limit": limit})
+        
+        with engine.connect() as conn:
+            result = conn.execute(query, {"limit": limit})
+            return pd.DataFrame(result.fetchall(), columns=result.keys())
     except Exception as e:
         print(f"Error fetching recent contributions: {e}")
         return pd.DataFrame()
 
-def insert_temple(name, location_address, latitude, longitude, deity, 
-                  architectural_style, built_year, history, contributor_name):
-    """Insert a new temple"""
+def insert_temple(name, description=None, location=None, image_url=None, audio_url=None, contributor_name=None):
+    """Insert a new temple using the actual temples table schema"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return None
-        engine = create_engine(database_url)
+        
         with engine.connect() as conn:
             query = text("""
-                INSERT INTO temples (name, location_address, latitude, longitude, 
-                                   deity, architectural_style, built_year, history, 
-                                   contributor_name)
-                VALUES (:name, :location_address, :latitude, :longitude, :deity,
-                        :architectural_style, :built_year, :history, :contributor_name)
+                INSERT INTO temples (id, name, description, location, image_url, audio_url, created_at)
+                VALUES (:id, :name, :description, :location, :image_url, :audio_url, NOW())
                 RETURNING id
             """)
+            
+            temple_id = str(uuid.uuid4())
             result = conn.execute(query, {
+                "id": temple_id,
                 "name": name,
-                "location_address": location_address,
-                "latitude": latitude,
-                "longitude": longitude,
-                "deity": deity,
-                "architectural_style": architectural_style,
-                "built_year": built_year,
-                "history": history,
-                "contributor_name": contributor_name
+                "description": description,
+                "location": location,
+                "image_url": image_url,
+                "audio_url": audio_url
             })
             conn.commit()
-            return result.fetchone()[0]
+            return temple_id
     except Exception as e:
         print(f"Error inserting temple: {e}")
         return None
 
 def insert_content_contribution(title, content_type, description, file_url,
                                latitude, longitude, location_address, contributor_name):
-    """Insert a new content contribution"""
+    """Insert a new content contribution using the actual content_contributions table schema"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return None
-        engine = create_engine(database_url)
+        
         with engine.connect() as conn:
             query = text("""
                 INSERT INTO content_contributions (title, content_type, description, 
                                                  file_url, latitude, longitude, 
-                                                 location_address, contributor_name)
+                                                 location_address, contributor_name, created_at)
                 VALUES (:title, :content_type, :description, :file_url,
-                        :latitude, :longitude, :location_address, :contributor_name)
+                        :latitude, :longitude, :location_address, :contributor_name, NOW())
                 RETURNING id
             """)
+            
             result = conn.execute(query, {
                 "title": title,
                 "content_type": content_type,
@@ -203,17 +132,79 @@ def insert_content_contribution(title, content_type, description, file_url,
         print(f"Error inserting contribution: {e}")
         return None
 
+def insert_historical_event(temple_id, event_date, event_title, event_description,
+                           latitude, longitude, contributor_name):
+    """Insert a new historical event using the actual historical_events table schema"""
+    try:
+        engine = get_supabase_client()
+        if not engine:
+            return None
+        
+        with engine.connect() as conn:
+            query = text("""
+                INSERT INTO historical_events (temple_id, event_date, event_title, 
+                                             event_description, latitude, longitude, 
+                                             contributor_name, created_at)
+                VALUES (:temple_id, :event_date, :event_title, :event_description,
+                        :latitude, :longitude, :contributor_name, NOW())
+                RETURNING id
+            """)
+            
+            result = conn.execute(query, {
+                "temple_id": temple_id,
+                "event_date": event_date,
+                "event_title": event_title,
+                "event_description": event_description,
+                "latitude": latitude,
+                "longitude": longitude,
+                "contributor_name": contributor_name
+            })
+            conn.commit()
+            return result.fetchone()[0]
+    except Exception as e:
+        print(f"Error inserting historical event: {e}")
+        return None
+
+def insert_media_upload(temple_id, uploaded_by, file_type, file_url):
+    """Insert a new media upload using the actual media_uploads table schema"""
+    try:
+        engine = get_supabase_client()
+        if not engine:
+            return None
+        
+        with engine.connect() as conn:
+            query = text("""
+                INSERT INTO media_uploads (id, temple_id, uploaded_by, file_type, file_url, uploaded_at)
+                VALUES (:id, :temple_id, :uploaded_by, :file_type, :file_url, NOW())
+                RETURNING id
+            """)
+            
+            media_id = str(uuid.uuid4())
+            result = conn.execute(query, {
+                "id": media_id,
+                "temple_id": temple_id,
+                "uploaded_by": uploaded_by,
+                "file_type": file_type,
+                "file_url": file_url
+            })
+            conn.commit()
+            return media_id
+    except Exception as e:
+        print(f"Error inserting media upload: {e}")
+        return None
+
 def get_all_temples():
     """Get all temples"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return pd.DataFrame()
-        engine = create_engine(database_url)
-        query = text("""
-            SELECT * FROM temples ORDER BY created_at DESC
-        """)
-        return pd.read_sql(query, engine)
+        
+        query = text("SELECT * FROM temples ORDER BY created_at DESC")
+        
+        with engine.connect() as conn:
+            result = conn.execute(query)
+            return pd.DataFrame(result.fetchall(), columns=result.keys())
     except Exception as e:
         print(f"Error fetching temples: {e}")
         return pd.DataFrame()
@@ -221,38 +212,86 @@ def get_all_temples():
 def get_all_contributions():
     """Get all content contributions"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return pd.DataFrame()
-        engine = create_engine(database_url)
-        query = text("""
-            SELECT * FROM content_contributions ORDER BY created_at DESC
-        """)
-        return pd.read_sql(query, engine)
+        
+        query = text("SELECT * FROM content_contributions ORDER BY created_at DESC")
+        
+        with engine.connect() as conn:
+            result = conn.execute(query)
+            return pd.DataFrame(result.fetchall(), columns=result.keys())
     except Exception as e:
         print(f"Error fetching contributions: {e}")
+        return pd.DataFrame()
+
+def get_all_historical_events():
+    """Get all historical events"""
+    try:
+        engine = get_supabase_client()
+        if not engine:
+            return pd.DataFrame()
+        
+        query = text("SELECT * FROM historical_events ORDER BY created_at DESC")
+        
+        with engine.connect() as conn:
+            result = conn.execute(query)
+            return pd.DataFrame(result.fetchall(), columns=result.keys())
+    except Exception as e:
+        print(f"Error fetching historical events: {e}")
         return pd.DataFrame()
 
 def search_temples(search_term, architectural_style=None):
     """Search temples by name or other criteria"""
     try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
+        engine = get_supabase_client()
+        if not engine:
             return pd.DataFrame()
-        engine = create_engine(database_url)
-        where_clause = "WHERE name ILIKE :search_term OR deity ILIKE :search_term OR location_address ILIKE :search_term"
-        params = {"search_term": f"%{search_term}%"}
         
-        if architectural_style:
-            where_clause += " AND architectural_style = :style"
-            params["style"] = architectural_style
+        where_clause = "WHERE name ILIKE :search_term OR description ILIKE :search_term OR location ILIKE :search_term"
+        params = {"search_term": f"%{search_term}%"}
         
         query = text(f"""
             SELECT * FROM temples 
             {where_clause}
             ORDER BY created_at DESC
         """)
-        return pd.read_sql(query, engine, params=params)
+        
+        with engine.connect() as conn:
+            result = conn.execute(query, params)
+            return pd.DataFrame(result.fetchall(), columns=result.keys())
     except Exception as e:
         print(f"Error searching temples: {e}")
+        return pd.DataFrame()
+
+def get_temple_by_id(temple_id):
+    """Get a specific temple by ID"""
+    try:
+        engine = get_supabase_client()
+        if not engine:
+            return None
+        
+        query = text("SELECT * FROM temples WHERE id = :temple_id")
+        
+        with engine.connect() as conn:
+            result = conn.execute(query, {"temple_id": temple_id})
+            return result.fetchone()
+    except Exception as e:
+        print(f"Error fetching temple: {e}")
+        return None
+
+def get_media_by_temple_id(temple_id):
+    """Get all media for a specific temple"""
+    try:
+        engine = get_supabase_client()
+        if not engine:
+            return pd.DataFrame()
+        
+        query = text("SELECT * FROM media_uploads WHERE temple_id = :temple_id ORDER BY uploaded_at DESC")
+        
+        with engine.connect() as conn:
+            result = conn.execute(query, {"temple_id": temple_id})
+            return pd.DataFrame(result.fetchall(), columns=result.keys())
+    except Exception as e:
+        print(f"Error fetching media: {e}")
         return pd.DataFrame()

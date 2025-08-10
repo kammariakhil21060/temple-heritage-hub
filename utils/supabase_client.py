@@ -3,187 +3,168 @@ import streamlit as st
 from sqlalchemy import create_engine, text
 from typing import Optional
 from dotenv import load_dotenv
-load_dotenv()
 import urllib.parse
+import requests
+
+# Load environment variables from .env file if present
+try:
+    load_dotenv()
+except Exception as e:
+    print(f"Warning: Could not load .env file: {e}")
+
+# ----------------------- DATABASE CONNECTION ------------------------
 
 def get_supabase_client():
     """
-    Get Supabase connection using DATABASE_URL
-    Returns database connection or None if failed
+    Get Supabase database engine using SQLAlchemy.
+    Returns: SQLAlchemy engine or None if failed.
     """
     try:
-        # Try to get DATABASE_URL from environment variable first
+        # Get database URL from environment
         database_url = os.getenv("DATABASE_URL")
+        
         if not database_url:
-            supabase_url = os.getenv("SUPABASE_URL")
-            supabase_password = os.getenv("SUPABASE_PASSWORD")
-            if supabase_url and supabase_password:
-                host = supabase_url.replace("https://", "").replace("http://", "")
-                escaped_password = urllib.parse.quote_plus(supabase_password)
-                database_url = f"postgresql://postgres:{escaped_password}@{host}:5432/postgres"
-            else:
-                st.error("DATABASE_URL or SUPABASE_PASSWORD environment variable not set.")
-                return None
-        # Test the connection
+            st.error("DATABASE_URL environment variable not set.")
+            return None
+
+        # Create SQLAlchemy engine
         engine = create_engine(database_url)
+        
+        # Test connection
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+        
         return engine
+    
     except Exception as e:
-        st.error(f"Failed to connect to Supabase: {str(e)}")
-        st.info("""
-        Connection troubleshooting:
-        - Ensure your DATABASE_URL is correctly formatted
-        - Check that your Supabase project is active
-        - Verify your database password is correct
-        - Make sure you're using the correct connection string format
-        """)
+        st.error(f"❌ Database connection failed: {str(e)}")
         return None
 
 def test_supabase_connection() -> bool:
     """
-    Test Supabase database connection
-    Returns: True if connection successful, False otherwise
+    Test if Supabase DB connection works.
     """
     try:
-        client = get_supabase_client()
-        return client is not None
-    except Exception:
+        return get_supabase_client() is not None
+    except:
         return False
+
+# ----------------------- STORAGE CONFIG ------------------------
 
 def get_supabase_storage_client():
     """
-    Get Supabase storage client for file operations
-    Note: This requires the supabase-py library for storage operations
-    For now, we'll use direct REST API calls
+    Load Supabase Storage config from environment.
     """
     try:
-        # Use the provided Supabase credentials
-        storage_url = os.getenv("SUPABASE_URL", "https://rrbrghxzuzzxroqbwfqi.supabase.co")
-        storage_key = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyYnJnaHh6dXp6eHJvcWJ3ZnFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4MDU0OTMsImV4cCI6MjA2OTM4MTQ5M30.Evcf0lPD7reXvgZNZrAZDoHHLDx72AUmUHMSOXgQNV4")
+        storage_url = os.getenv("SUPABASE_URL")
+        storage_key = os.getenv("SUPABASE_ANON_KEY")
         
         if not storage_url or not storage_key:
-            st.warning("Supabase storage credentials not configured. File uploads will be disabled.")
+            st.warning("Supabase storage credentials not found.")
             return None
-        
+
         return {
             "url": storage_url,
             "key": storage_key
         }
     
     except Exception as e:
-        st.error(f"Storage client error: {str(e)}")
+        st.error(f"⚠️ Storage config error: {str(e)}")
         return None
+
+# ----------------------- FILE UPLOAD ------------------------
 
 def upload_file_to_storage(file_content: bytes, file_path: str, content_type: str) -> Optional[str]:
     """
-    Upload file to Supabase storage using REST API
-    Returns: Public URL of uploaded file or None if failed
+    Upload a file to Supabase Storage.
+    Returns: Public URL of uploaded file or None.
     """
     try:
-        import requests
-        
-        storage_config = get_supabase_storage_client()
-        if not storage_config:
+        config = get_supabase_storage_client()
+        if not config:
             return None
-        
-        bucket_name = "heritage-files"
-        upload_url = f"{storage_config['url']}/storage/v1/object/{bucket_name}/{file_path}"
-        
+
+        bucket = "heritage-files"
+        upload_url = f"{config['url']}/storage/v1/object/{bucket}/{file_path}"
+
         headers = {
-            "Authorization": f"Bearer {storage_config['key']}",
+            "Authorization": f"Bearer {config['key']}",
             "Content-Type": content_type,
             "x-upsert": "false"
         }
-        
+
         response = requests.post(upload_url, data=file_content, headers=headers)
-        
+
         if response.status_code == 200:
-            # Get public URL
-            public_url = f"{storage_config['url']}/storage/v1/object/public/{bucket_name}/{file_path}"
-            return public_url
+            return f"{config['url']}/storage/v1/object/public/{bucket}/{file_path}"
         else:
-            st.error(f"Storage upload failed: {response.status_code} - {response.text}")
+            st.error(f"❌ Upload failed: {response.status_code} - {response.text}")
             return None
-    
+
     except Exception as e:
-        st.error(f"Storage upload error: {str(e)}")
+        st.error(f"❌ Upload error: {str(e)}")
         return None
 
 def get_storage_file_url(file_path: str) -> Optional[str]:
     """
-    Get public URL for a file in Supabase storage
+    Get public URL for file in Supabase Storage.
     """
     try:
-        storage_config = get_supabase_storage_client()
-        if not storage_config:
-            return None
-        
-        bucket_name = "heritage-files"
-        public_url = f"{storage_config['url']}/storage/v1/object/public/{bucket_name}/{file_path}"
-        return public_url
+        config = get_supabase_storage_client()
+        if config:
+            bucket = "heritage-files"
+            return f"{config['url']}/storage/v1/object/public/{bucket}/{file_path}"
+        return None
     
     except Exception as e:
-        st.error(f"Error getting file URL: {str(e)}")
+        st.error(f"⚠️ Failed to get file URL: {str(e)}")
         return None
 
-def create_storage_bucket(bucket_name: str) -> bool:
+def create_storage_bucket(bucket_name: str = "heritage-files") -> bool:
     """
-    Create a storage bucket in Supabase
-    Returns: True if successful, False otherwise
+    Create a public storage bucket (optional).
     """
     try:
-        import requests
-        
-        storage_config = get_supabase_storage_client()
-        if not storage_config:
+        config = get_supabase_storage_client()
+        if not config:
             return False
-        
-        create_url = f"{storage_config['url']}/storage/v1/bucket"
-        
+
         headers = {
-            "Authorization": f"Bearer {storage_config['key']}",
+            "Authorization": f"Bearer {config['key']}",
             "Content-Type": "application/json"
         }
-        
+
         data = {
             "id": bucket_name,
             "name": bucket_name,
             "public": True
         }
-        
-        response = requests.post(create_url, json=data, headers=headers)
-        
-        if response.status_code in [200, 201]:
-            return True
-        elif response.status_code == 409:
-            # Bucket already exists
+
+        response = requests.post(f"{config['url']}/storage/v1/bucket", json=data, headers=headers)
+
+        if response.status_code in [200, 201, 409]:  # 409 means already exists
             return True
         else:
-            st.error(f"Bucket creation failed: {response.status_code} - {response.text}")
+            st.error(f"❌ Bucket creation failed: {response.status_code} - {response.text}")
             return False
-    
+
     except Exception as e:
-        st.error(f"Bucket creation error: {str(e)}")
+        st.error(f"⚠️ Bucket error: {str(e)}")
         return False
+
+# ----------------------- DB INFO ------------------------
 
 def get_database_info() -> dict:
     """
-    Get information about the connected database
+    Return database and storage status for diagnostics.
     """
     try:
         engine = get_supabase_client()
-        if not engine:
-            return {}
-        
-        info = {
-            "connected": True,
+        return {
+            "connected": engine is not None,
             "database_url": os.getenv("DATABASE_URL", "").split("@")[-1] if os.getenv("DATABASE_URL") else "",
             "storage_configured": get_supabase_storage_client() is not None
         }
-        
-        return info
-    
     except Exception as e:
         return {
             "connected": False,

@@ -3,8 +3,13 @@ import os
 from datetime import date, datetime
 from utils.geolocation import get_location_options, get_coordinates_from_address
 from utils.file_handler import upload_file_to_supabase
-from database import insert_temple, insert_content_contribution
+from database import insert_temple, insert_content_contribution, insert_historical_event
 import requests
+
+# Set environment variables directly
+os.environ["SUPABASE_URL"] = "https://rrbrghxzuzzxroqbwfqi.supabase.co"
+os.environ["SUPABASE_ANON_KEY"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyYnJnaHh6dXp6eHJvcWJ3ZnFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4MDU0OTMsImV4cCI6MjA2OTM4MTQ5M30.Evcf0lPD7reXvgZNZrAZDoHHLDx72AUmUHMSOXgQNV4"
+os.environ["DATABASE_URL"] = "postgresql://postgres:Akhil%40112233@db.rrbrghxzuzzxroqbwfqi.supabase.co:5432/postgres"
 
 st.set_page_config(page_title="Upload Content", page_icon="📤", layout="wide")
 
@@ -156,15 +161,19 @@ elif content_type == "Temple Information":
         if temple_name:
             with st.spinner("Adding temple information..."):
                 try:
+                    # Create description with additional details
+                    full_description = f"Deity: {deity}\nArchitectural Style: {architectural_style}"
+                    if built_year:
+                        full_description += f"\nBuilt Year: {built_year}"
+                    if history:
+                        full_description += f"\n\nHistory & Significance:\n{history}"
+                    
                     temple_id = insert_temple(
                         name=temple_name,
-                        location_address=location_address,
-                        latitude=latitude,
-                        longitude=longitude,
-                        deity=deity,
-                        architectural_style=architectural_style,
-                        built_year=built_year,
-                        history=history,
+                        description=full_description,
+                        location=location_address,
+                        image_url=None,
+                        audio_url=None,
                         contributor_name=contributor_name if not anonymous else None
                     )
                     
@@ -192,6 +201,8 @@ elif content_type == "Historical Event":
         if event_title:
             with st.spinner("Adding historical event..."):
                 try:
+                    # For now, we'll use content_contributions table for historical events
+                    # In a full implementation, you'd want to use the historical_events table
                     contribution_id = insert_content_contribution(
                         title=event_title,
                         content_type="Historical Event",

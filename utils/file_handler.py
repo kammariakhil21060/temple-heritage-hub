@@ -5,7 +5,8 @@ from datetime import datetime
 import mimetypes
 from typing import Optional
 from io import BytesIO
-from supabase import create_client, Client
+from utils.supabase_client import get_supabase_storage_client, upload_file_to_storage
+import requests
 
 def get_file_type(filename: str) -> str:
     """
@@ -81,31 +82,6 @@ def generate_unique_filename(original_filename: str, content_type: str) -> str:
     
     return new_filename
 
-def get_supabase_storage_client() -> Optional[Client]:
-    """Get Supabase client for storage operations"""
-    try:
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            return None
-        
-        # Extract Supabase URL and create storage client
-        # DATABASE_URL format: postgresql://postgres:[password]@db.[ref].supabase.co:6543/postgres
-        if "supabase.co" in database_url:
-            # Extract the project reference from the database URL
-            parts = database_url.split("@db.")[1].split(".supabase.co")[0]
-            supabase_url = f"https://{parts}.supabase.co"
-            
-            # For now, we'll use a placeholder key - this would need to be configured
-            # In a real deployment, you'd need SUPABASE_ANON_KEY
-            supabase_key = "placeholder"  # This needs to be properly configured
-            
-            return create_client(supabase_url, supabase_key)
-        
-        return None
-    except Exception as e:
-        st.error(f"Error creating Supabase storage client: {str(e)}")
-        return None
-
 def upload_file_to_supabase(uploaded_file, content_type: str) -> Optional[str]:
     """
     Upload file to Supabase storage bucket
@@ -116,13 +92,24 @@ def upload_file_to_supabase(uploaded_file, content_type: str) -> Optional[str]:
         if not validate_file(uploaded_file, content_type):
             return None
         
-        # For now, we'll disable file storage since it requires additional Supabase configuration
-        # In a real deployment, you would configure SUPABASE_URL and SUPABASE_ANON_KEY
-        st.warning("File storage is not configured. Files cannot be uploaded at this time.")
-        st.info("To enable file uploads, you would need to configure Supabase storage with proper API keys.")
+        # Generate unique filename
+        file_path = generate_unique_filename(uploaded_file.name, content_type)
         
-        # Return a placeholder URL to allow the rest of the application to function
-        return f"placeholder://file/{uploaded_file.name}"
+        # Get file content
+        file_content = uploaded_file.read()
+        
+        # Get content type
+        content_type_mime = uploaded_file.type or mimetypes.guess_type(uploaded_file.name)[0] or 'application/octet-stream'
+        
+        # Upload to Supabase storage
+        file_url = upload_file_to_storage(file_content, file_path, content_type_mime)
+        
+        if file_url:
+            st.success(f"✅ File uploaded successfully!")
+            return file_url
+        else:
+            st.error("❌ Failed to upload file to storage")
+            return None
     
     except Exception as e:
         st.error(f"File upload error: {str(e)}")
@@ -134,14 +121,19 @@ def delete_file_from_supabase(file_path: str) -> bool:
     Returns: True if successful, False otherwise
     """
     try:
-        supabase = get_supabase_client()
-        if not supabase:
+        config = get_supabase_storage_client()
+        if not config:
             return False
         
-        bucket_name = "heritage-files"
+        bucket = "heritage-files"
+        delete_url = f"{config['url']}/storage/v1/object/{bucket}/{file_path}"
         
-        result = supabase.storage.from_(bucket_name).remove([file_path])
-        return result is not None
+        headers = {
+            "Authorization": f"Bearer {config['key']}"
+        }
+        
+        response = requests.delete(delete_url, headers=headers)
+        return response.status_code == 200
     
     except Exception as e:
         st.error(f"File deletion error: {str(e)}")
@@ -153,22 +145,27 @@ def get_file_info(file_path: str) -> Optional[dict]:
     Returns: Dictionary with file info or None if failed
     """
     try:
-        supabase = get_supabase_client()
-        if not supabase:
+        config = get_supabase_storage_client()
+        if not config:
             return None
         
-        bucket_name = "heritage-files"
+        bucket = "heritage-files"
+        info_url = f"{config['url']}/storage/v1/object/info/{bucket}/{file_path}"
         
-        # Get file metadata
-        result = supabase.storage.from_(bucket_name).info(file_path)
+        headers = {
+            "Authorization": f"Bearer {config['key']}"
+        }
         
-        if result:
+        response = requests.get(info_url, headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
             return {
-                'name': result.get('name'),
-                'size': result.get('metadata', {}).get('size'),
-                'content_type': result.get('metadata', {}).get('mimetype'),
-                'created_at': result.get('created_at'),
-                'updated_at': result.get('updated_at')
+                'name': data.get('name'),
+                'size': data.get('metadata', {}).get('size'),
+                'content_type': data.get('metadata', {}).get('mimetype'),
+                'created_at': data.get('created_at'),
+                'updated_at': data.get('updated_at')
             }
     
     except Exception as e:
@@ -182,14 +179,24 @@ def list_files_in_bucket(prefix: str = "") -> list:
     Returns: List of file objects
     """
     try:
-        supabase = get_supabase_client()
-        if not supabase:
+        config = get_supabase_storage_client()
+        if not config:
             return []
         
-        bucket_name = "heritage-files"
+        bucket = "heritage-files"
+        list_url = f"{config['url']}/storage/v1/object/list/{bucket}"
         
-        result = supabase.storage.from_(bucket_name).list(prefix)
-        return result if result else []
+        headers = {
+            "Authorization": f"Bearer {config['key']}"
+        }
+        
+        params = {"prefix": prefix} if prefix else {}
+        response = requests.get(list_url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return []
     
     except Exception as e:
         st.error(f"Error listing files: {str(e)}")
